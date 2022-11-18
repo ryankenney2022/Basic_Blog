@@ -1,11 +1,9 @@
-//jshint esversion:6
-
+require("dotenv").config();
 const express = require("express");
 const bodyParser = require("body-parser");
 const ejs = require("ejs");
+const mongoose = require("mongoose");
 const _ = require("lodash");
-
-let posts = [];
 
 const homeStartingContent =
   "Lacus vel facilisis volutpat est velit egestas dui id ornare. Semper auctorneque vitae tempus quam. Sit amet cursus sit amet dictum sit amet justo.Viverra tellus in hac habitasse. Imperdiet proin fermentum leo vel orciporta. Donec ultrices tincidunt arcu non sodales neque sodales ut. Mattismolestie a iaculis at erat pellentesque adipiscing. Magnis dis parturientmontes nascetur ridiculus mus mauris vitae ultricies. Adipiscing elit utaliquam purus sit amet luctus venenatis lectus. Ultrices vitae auctor euaugue ut lectus arcu bibendum at. Odio euismod lacinia at quis risus sedvulputate odio ut. Cursus mattis molestie a iaculis at erat pellentesqueadipiscing.";
@@ -22,10 +20,38 @@ app.set("view engine", "ejs");
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static("public"));
 
+mongoose.connect("mongodb://127.0.0.1:27017/blogDB");
+
+const postSchema = {
+  title: String,
+  content: String,
+};
+
+const Post = mongoose.model("Post", postSchema);
+
 app.get("/", function (req, res) {
-  res.render("home", {
-    startingContent: homeStartingContent,
-    posts: posts,
+  Post.find({}, function (err, foundItems) {
+    res.render("home", {
+      startingContent: homeStartingContent,
+      posts: foundItems,
+    });
+  });
+});
+
+app.get("/compose", function (req, res) {
+  res.render("compose");
+});
+
+app.post("/compose", function (req, res) {
+  const post = new Post({
+    title: req.body.postTitle,
+    content: req.body.postBody,
+  });
+
+  post.save(function (err) {
+    if (!err) {
+      res.redirect("/");
+    }
   });
 });
 
@@ -37,36 +63,14 @@ app.get("/contact", function (req, res) {
   res.render("contact", { contactMeContent: contactContent });
 });
 
-app.get("/compose", function (req, res) {
-  res.render("compose");
-});
+app.get("/post/:postId", function (req, res) {
+  const requestedPostId = req.params.postId;
 
-app.post("/compose", function (req, res) {
-  const post = {
-    title: req.body.postTitle,
-    body: req.body.postBody,
-  };
-
-  posts.push(post);
-  res.redirect("/");
-});
-
-app.get("/post", function (req, res) {
-  res.render("post");
-});
-
-app.get("/post/:post", function (req, res) {
-  const requestedTitle = _.lowerCase(req.params.post);
-
-  posts.forEach(function (post) {
-    const postTitle = _.lowerCase(post.title);
-    const postBody = post.body;
-    if (postTitle == requestedTitle) {
-      res.render("post", {
-        postTitle: _.capitalize(postTitle),
-        postBody: postBody,
-      });
-    }
+  Post.findById(requestedPostId, function (err, post) {
+    res.render("post", {
+      title: post.title,
+      content: post.content,
+    });
   });
 });
 
